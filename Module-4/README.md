@@ -420,55 +420,56 @@ If you've played around with the `CoinZa` application, you've probably noticed t
 - To dismiss the popup we are going to use the following code:
     ```javascript
     var alertController = ObjC.classes.UIAlertController
-  	ObjC.choose(alertController, {
-  		onMatch: function (alert) {
-  			alert.dismissViewControllerAnimated_completion_(true, NULL);
-  			return 'stop';
-  		},
-  		onComplete: function () {
-  			console.log('[+] Done dismissing annoying alert!');
-  		}
-  	});
+      ObjC.choose(alertController, {
+          onMatch: function (alert) {
+              alert.dismissViewControllerAnimated_completion_(true, NULL);
+              return 'stop';
+          },
+          onComplete: function () {
+              console.log('[+] Done dismissing annoying alert!');
+          }
+      });
     ```
     - This snippet of code is using the `ObjC.choose` function to iterate over the application memory and identifying objects that match the `ObjC.classes.UIAlertController` signature. It is similar to `Cycript`'s `choose`, except that this function returns every value by calling the `onMatch` callback. This iterator can be stopped by returning the string `stop` and since I know there's only one `UIAlertController` I stop after the first one is found.
 - The next step is to disable the jailbreak detection by overriding the `[Utils isJailbroken]` method, exactly the same as you did with `Cycript`. In Frida this is how you override returned values:
     ```javascript
     function bypassJailbreakDetection() {
-    	try {
-    		var hook = ObjC.classes.Utils['+ isJailbroken'];
-    		Interceptor.attach(hook.implementation, {
-    	    	onLeave: function(oldValue) {
-    	    		_newValue = ptr("0x0") ;
-    	    		oldValue.replace(_newValue);
-    	    	}
-    	    });
+        try {
+            var hook = ObjC.classes.Utils['+ isJailbroken'];
+            Interceptor.attach(hook.implementation, {
+                onLeave: function(oldValue) {
+                    var newValue = ptr("0x0") ;
+                    oldValue.replace(newValue);
+                }
+            });
 
-    	} catch(err) {
-    		console.log("[-] Error: " + err.message);
-    	}
+        } catch(err) {
+            console.log("[-] Error: " + err.message);
+        }
     }
     ```
     - First you have to get a reference to the method you want to override and then in the `onLeave` callback you return the new value.
 - And to finalize the same steps you did with `Cycript`, all is left is for you to present the new `InitialViewController`:
     ```javascript
     function presentInitialVC() {
-    	var storyboardClass = ObjC.classes.UIStoryboard;
-    	var bundleClasss = ObjC.classes.NSBundle;
-    	var navConClass = ObjC.classes.UINavigationController;
-    	var applicationClass = ObjC.classes.UIApplication;
+        var storyboardClass = ObjC.classes.UIStoryboard;
+        var bundleClasss = ObjC.classes.NSBundle;
+        var navConClass = ObjC.classes.UINavigationController;
+        var applicationClass = ObjC.classes.UIApplication;
 
-    	var storyboard = storyboardClass.storyboardWithName_bundle_('Main',bundleClasss.mainBundle());
-    	var initialVC = storyboard.instantiateViewControllerWithIdentifier_('InitialViewController');
+        var storyboard = storyboardClass.storyboardWithName_bundle_('Main',bundleClasss.mainBundle());
+        var initialVC = storyboard.instantiateViewControllerWithIdentifier_('InitialViewController');
 
-    	var navCon = navConClass.alloc().initWithRootViewController_(initialVC);
-    	applicationClass.sharedApplication().keyWindow().rootViewController().presentViewController_animated_completion_(navCon, true, NULL);
+        var navCon = navConClass.alloc().initWithRootViewController_(initialVC);
+        applicationClass.sharedApplication().keyWindow().rootViewController().presentViewController_animated_completion_(navCon, true, NULL);
     }
     ```
 - Up until this point all you've done is following the same steps that you did with `Cydia` but with `Frida`'s interactive console. But you have one step left, enabling the pro version:
     ```javascript
     function setProVersion() {
-    	var userDefaultsClass = ObjC.classes.NSUserDefaults;
-    	userDefaultsClass.setObject_forKey_(true,'isProVersion');
+        var userDefaultsClass = ObjC.classes.NSUserDefaults;
+        userDefaultsClass.setBool_forKey_(true,'isProVersion');
+        console.log("[+] Key for isProVersion:",userDefaultsClass.objectForKey_("isProVersion"));
     }
     ```
 - Now if you increase the balance of any wallet you'll get an extra 20% for free!
@@ -482,3 +483,4 @@ If you've played around with the `CoinZa` application, you've probably noticed t
 - For the majority of researchers and hackers I've met, the dynamic analysis is their favourite part of this whole process. I can't blame them, executing code, sending data, remotely sniffing traffic, all of these are exciting _hacks_.
 - On the other hand, I hope all these cases show the importance of having a security mindset when developing iOS applications and mobile applications in general. Specially because, like all the issues I showed you during the static analysis, I've seen all of these vulnerabilities in **real world** applications.
 - After spending some time understanding how an application was built, attacking its runtime is super fun and in some cases could lead to free stuff. _Note: if you ever find an issue with client-side checks, please report it to the author(s) instead of just exploit it for your benefit._ 😉
+
